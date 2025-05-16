@@ -1,6 +1,6 @@
 // src/components/Sidebar.tsx
 import { Link, useLocation } from "react-router-dom";
-import { Home, TrendingUp, Gamepad2, Bookmark, X } from "lucide-react";
+import { Home, TrendingUp, Gamepad2, Bookmark, Heart, X } from "lucide-react";
 import { useTheme } from "../context/ThemeContext";
 import React from "react";
 
@@ -21,11 +21,8 @@ const Sidebar = ({ isOpen, closeSidebar }: SidebarProps) => {
     { to: "/", icon: <Home size={20} />, label: "Home" },
     { to: "/trending", icon: <TrendingUp size={20} />, label: "Trending" },
     { to: "/gaming", icon: <Gamepad2 size={20} />, label: "Gaming" },
-    {
-      to: "/saved-videos",
-      icon: <Bookmark size={20} />,
-      label: "Saved Videos",
-    },
+    { to: "/favorites", icon: <Heart size={20} />, label: "Favorites" },
+    { to: "/saved-videos", icon: <Bookmark size={20} />, label: "Saved Videos" },
   ];
 
   return (

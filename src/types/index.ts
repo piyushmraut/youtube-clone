@@ -1,3 +1,4 @@
+// src/types/index.ts
 export interface VideoType {
   id: string;
   title: string;
@@ -10,6 +11,8 @@ export interface VideoType {
   published_at: string;
   video_url?: string;
   description?: string;
+  likes?: number;
+  dislikes?: number;
 }
 
 export interface Channel {
@@ -22,6 +25,8 @@ export interface VideoDetailType extends VideoType {
   video_url: string;
   description: string;
   channel: Channel;
+  likes?: number;
+  dislikes?: number;
 }
 
 export interface ApiResponse<T> {
@@ -33,7 +38,6 @@ export interface VideoDetailResponse {
   video_details: VideoDetailType;
 }
 
-// src/types/index.ts
 export interface CommentType {
   id: string;
   author: string;
@@ -41,10 +45,17 @@ export interface CommentType {
   text: string;
   likes: number;
   timestamp: string;
+  isEditable?: boolean;
   replies?: CommentType[];
 }
 
 export interface LikeStatus {
   liked: boolean;
   disliked: boolean;
+}
+
+export interface UserInteraction {
+  likedVideos: string[];
+  dislikedVideos: string[];
+  likedComments: string[];
 }

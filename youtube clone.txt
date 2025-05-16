@@ -1,0 +1,2270 @@
+src/api/videoService.ts
+import axios from 'axios';
+import type { ApiResponse, VideoType, VideoDetailResponse } from '../types';
+
+const API_BASE_URL = 'https://apis.ccbp.in';
+
+const getAuthHeader = (token: string) => {
+  return {
+    Authorization: `Bearer ${token}`,
+  };
+};
+
+export const getVideos = async (token: string, searchTerm: string = ''): Promise<VideoType[]> => {
+  try {
+    const response = await axios.get<ApiResponse<VideoType>>(
+      `${API_BASE_URL}/videos/all?search=${searchTerm}`,
+      { headers: getAuthHeader(token) }
+    );
+    return response.data.videos;
+  } catch (error) {
+    console.error('Error fetching videos:', error);
+    throw error;
+  }
+};
+
+export const getTrendingVideos = async (token: string): Promise<VideoType[]> => {
+  try {
+    const response = await axios.get<ApiResponse<VideoType>>(
+      `${API_BASE_URL}/videos/trending`,
+      { headers: getAuthHeader(token) }
+    );
+    return response.data.videos;
+  } catch (error) {
+    console.error('Error fetching trending videos:', error);
+    throw error;
+  }
+};
+
+export const getGamingVideos = async (token: string): Promise<VideoType[]> => {
+  try {
+    const response = await axios.get<ApiResponse<VideoType>>(
+      `${API_BASE_URL}/videos/gaming`,
+      { headers: getAuthHeader(token) }
+    );
+    return response.data.videos;
+  } catch (error) {
+    console.error('Error fetching gaming videos:', error);
+    throw error;
+  }
+};
+
+export const getVideoDetails = async (token: string, videoId: string) => {
+  try {
+    const response = await axios.get<VideoDetailResponse>(
+      `${API_BASE_URL}/videos/${videoId}`,
+      { headers: getAuthHeader(token) }
+    );
+    return response.data.video_details;
+  } catch (error) {
+    console.error('Error fetching video details:', error);
+    throw error;
+  }
+};
+
+src/components/Layout.tsx
+import { Outlet } from 'react-router-dom';
+import Navbar from './Navbar';
+import Sidebar from './Sidebar';
+import { useState } from 'react';
+
+const Layout = () => {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const toggleSidebar = () => {
+    setSidebarOpen((prev) => !prev);
+  };
+
+  return (
+    <div className="flex flex-col h-screen">
+      <Navbar toggleSidebar={toggleSidebar} />
+      
+      <div className="flex flex-1 overflow-hidden">
+        <Sidebar isOpen={sidebarOpen} closeSidebar={() => setSidebarOpen(false)} />
+        
+        <main className="flex-1 overflow-y-auto p-4 md:p-6">
+          <Outlet />
+        </main>
+      </div>
+    </div>
+  );
+};
+
+export default Layout;
+
+src/components/Loading.tsx
+import { Youtube } from 'lucide-react';
+
+interface LoadingProps {
+  message?: string;
+}
+
+const Loading = ({ message = 'Loading...' }: LoadingProps) => {
+  return (
+    <div className="flex flex-col items-center justify-center min-h-[50vh]">
+      <Youtube className="text-primary-600 animate-pulse" size={40} />
+      <p className="mt-4 text-light-400">{message}</p>
+    </div>
+  );
+};
+
+export default Loading;
+
+src/components/Navbar.tsx
+// src/components/Navbar.tsx
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Menu, Search, X, Youtube, Sun, Moon } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
+
+interface NavbarProps {
+  toggleSidebar: () => void;
+}
+
+const Navbar = ({ toggleSidebar }: NavbarProps) => {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const navigate = useNavigate();
+  const { logout } = useAuth();
+  const { isDarkMode, toggleTheme } = useTheme();
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    navigate(`/?search=${searchTerm}`);
+  };
+
+  const toggleMobileSearch = () => {
+    setIsSearchOpen(!isSearchOpen);
+  };
+
+  return (
+    <header className={`sticky top-0 z-10 shadow-md ${isDarkMode ? 'bg-dark-300' : 'bg-light-100'}`}>
+      <div className="flex items-center justify-between h-16 px-4">
+        <div className="flex items-center">
+          <button 
+            onClick={toggleSidebar}
+            className={`p-2 rounded-full mr-2 md:mr-4 ${isDarkMode ? 'hover:bg-dark-100' : 'hover:bg-light-200'}`}
+            aria-label="Toggle sidebar"
+          >
+            <Menu size={24} className={isDarkMode ? 'text-light-100' : 'text-dark-300'} />
+          </button>
+          
+          <div 
+            className="flex items-center cursor-pointer" 
+            onClick={() => navigate('/')}
+          >
+            <Youtube className="text-primary-600" size={32} />
+            <span className={`ml-2 text-xl font-bold hidden sm:block ${isDarkMode ? 'text-light-100' : 'text-dark-300'}`}>
+              YouTube
+            </span>
+          </div>
+        </div>
+
+        {/* Desktop Search */}
+        <form 
+          onSubmit={handleSearch}
+          className="hidden md:flex items-center max-w-xl w-full mx-4"
+        >
+          <div className="relative flex-1">
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search videos..."
+              className={`w-full px-4 py-2 border focus:border-primary-600 rounded-l-full outline-none ${isDarkMode ? 'bg-dark-100 border-dark-100 text-light-100 placeholder-light-400' : 'bg-light-200 border-light-300 text-dark-300 placeholder-dark-400'}`}
+            />
+          </div>
+          <button
+            type="submit"
+            className={`px-6 py-2 rounded-r-full border ${isDarkMode ? 'bg-dark-100 border-dark-100 hover:bg-dark-300' : 'bg-light-200 border-light-300 hover:bg-light-300'}`}
+          >
+            <Search size={20} className={isDarkMode ? 'text-light-100' : 'text-dark-300'} />
+          </button>
+        </form>
+
+        {/* Mobile Search Toggle */}
+        <div className="flex items-center md:hidden">
+          <button
+            onClick={toggleMobileSearch}
+            className={`p-2 rounded-full ${isDarkMode ? 'hover:bg-dark-100' : 'hover:bg-light-200'}`}
+            aria-label="Toggle search"
+          >
+            {isSearchOpen ? (
+              <X size={24} className={isDarkMode ? 'text-light-100' : 'text-dark-300'} />
+            ) : (
+              <Search size={24} className={isDarkMode ? 'text-light-100' : 'text-dark-300'} />
+            )}
+          </button>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {/* Theme Toggle */}
+          <button
+            onClick={toggleTheme}
+            className={`p-2 rounded-full ${isDarkMode ? 'hover:bg-dark-100' : 'hover:bg-light-200'}`}
+            aria-label="Toggle theme"
+          >
+            {isDarkMode ? (
+              <Sun size={20} className="text-light-100" />
+            ) : (
+              <Moon size={20} className="text-dark-300" />
+            )}
+          </button>
+
+          {/* Logout button */}
+          <button
+            onClick={logout}
+            className={`hidden md:block px-4 py-2 rounded-lg font-medium ${isDarkMode ? 'bg-dark-100 hover:bg-dark-300 text-light-100' : 'bg-light-200 hover:bg-light-300 text-dark-300'}`}
+          >
+            Logout
+          </button>
+        </div>
+      </div>
+
+      {/* Mobile Search Form */}
+      {isSearchOpen && (
+        <form 
+          onSubmit={handleSearch}
+          className={`flex items-center p-2 md:hidden ${isDarkMode ? 'bg-dark-300' : 'bg-light-100'}`}
+        >
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Search videos..."
+            className={`flex-1 px-4 py-2 border focus:border-primary-600 rounded-l-md outline-none ${isDarkMode ? 'bg-dark-100 border-dark-100 text-light-100 placeholder-light-400' : 'bg-light-200 border-light-300 text-dark-300 placeholder-dark-400'}`}
+            autoFocus
+          />
+          <button
+            type="submit"
+            className={`px-4 py-2 rounded-r-md border ${isDarkMode ? 'bg-dark-100 border-dark-100 hover:bg-dark-300' : 'bg-light-200 border-light-300 hover:bg-light-300'}`}
+          >
+            <Search size={20} className={isDarkMode ? 'text-light-100' : 'text-dark-300'} />
+          </button>
+        </form>
+      )}
+    </header>
+  );
+};
+
+export default Navbar;
+
+src/components/ProtectedRoute.tsx
+import { Navigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import type { ReactNode } from 'react';
+
+interface ProtectedRouteProps {
+  children: ReactNode;
+}
+
+const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
+  const { isAuthenticated, login } = useAuth();
+  
+  // For this example, we're just automatically logging in
+  // In a real app, we would redirect to a login page
+  if (!isAuthenticated) {
+    login();
+  }
+  
+  return <>{children}</>;
+};
+
+export default ProtectedRoute;
+
+src/components/Sidebar.tsx
+
+import { Link, useLocation } from "react-router-dom";
+import { Home, TrendingUp, Gamepad2, Bookmark, Heart, X } from "lucide-react";
+import { useTheme } from "../context/ThemeContext";
+import React from "react";
+
+interface SidebarProps {
+  isOpen: boolean;
+  closeSidebar: () => void;
+}
+
+const Sidebar = ({ isOpen, closeSidebar }: SidebarProps) => {
+  const location = useLocation();
+  const { isDarkMode } = useTheme();
+
+  const isActive = (path: string) => {
+    return location.pathname === path;
+  };
+
+  const navLinks = [
+    { to: "/", icon: <Home size={20} />, label: "Home" },
+    { to: "/trending", icon: <TrendingUp size={20} />, label: "Trending" },
+    { to: "/gaming", icon: <Gamepad2 size={20} />, label: "Gaming" },
+    { to: "/favorites", icon: <Heart size={20} />, label: "Favorites" },
+    { to: "/saved-videos", icon: <Bookmark size={20} />, label: "Saved Videos" },
+  ];
+
+  return (
+    <>
+      {/* Overlay for mobile */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 z-20 md:hidden"
+          onClick={closeSidebar}
+        ></div>
+      )}
+
+      {/* Sidebar */}
+      <aside
+        className={`fixed top-0 left-0 h-full w-64 z-30 pt-16 shadow-lg transform transition-transform duration-300 ease-in-out ${
+          isOpen ? "translate-x-0" : "-translate-x-full"
+        } md:relative md:translate-x-0 md:z-0 md:w-56 md:shrink-0 ${isDarkMode ? 'bg-dark-300' : 'bg-light-100'}`}
+      >
+        {/* Close button - mobile only */}
+        <button
+          onClick={closeSidebar}
+          className={`absolute top-4 right-4 p-1 rounded-full md:hidden ${isDarkMode ? 'hover:bg-dark-100' : 'hover:bg-light-200'}`}
+        >
+          <X size={20} className={isDarkMode ? 'text-light-100' : 'text-dark-300'} />
+        </button>
+
+        <nav className="p-4">
+          <ul className="space-y-2">
+            {navLinks.map((link) => (
+              <li key={link.to}>
+                <Link
+                  to={link.to}
+                  className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
+                    isActive(link.to) 
+                      ? isDarkMode 
+                        ? 'bg-dark-100 font-medium text-light-100' 
+                        : 'bg-light-200 font-medium text-dark-300'
+                      : isDarkMode 
+                        ? 'text-light-100 hover:bg-dark-100' 
+                        : 'text-dark-300 hover:bg-light-200'
+                  }`}
+                  onClick={closeSidebar}
+                >
+                  {React.cloneElement(link.icon, {
+                    className: isActive(link.to) 
+                      ? isDarkMode 
+                        ? 'text-light-100' 
+                        : 'text-dark-300'
+                      : isDarkMode 
+                        ? 'text-light-400' 
+                        : 'text-dark-400'
+                  })}
+                  <span>{link.label}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      </aside>
+    </>
+  );
+};
+
+export default Sidebar;
+
+src/components/VideoCard.tsx
+
+// src/components/VideoCard.tsx
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import type { VideoType } from '../types';
+import { formatTimeAgo } from '../utils/formatters';
+import { useTheme } from '../context/ThemeContext';
+
+interface VideoCardProps {
+  video: VideoType;
+  variant?: 'grid' | 'horizontal' | 'small';
+}
+
+const VideoCard = ({ video, variant = 'grid' }: VideoCardProps) => {
+  const navigate = useNavigate();
+  const [isLoading, setIsLoading] = useState(true);
+  const { isDarkMode } = useTheme();
+
+  const handleClick = () => {
+    navigate(`/video/${video.id}`);
+  };
+
+  const handleImageLoad = () => {
+    setIsLoading(false);
+  };
+
+  const renderGridCard = () => (
+    <div 
+      className={`video-card cursor-pointer ${isDarkMode ? 'hover:bg-dark-100' : 'hover:bg-light-200'}`} 
+      onClick={handleClick}
+    >
+      <div className="relative">
+        {isLoading && (
+          <div className={`absolute inset-0 ${isDarkMode ? 'bg-dark-100' : 'bg-light-200'} animate-pulse-slow`}></div>
+        )}
+        <img 
+          src={video.thumbnail_url} 
+          alt={video.title}
+          className="video-thumbnail"
+          onLoad={handleImageLoad}
+        />
+      </div>
+      <div className="flex gap-3 mt-3">
+        <div className="shrink-0 w-9 h-9">
+          {video.channel?.profile_image_url && (
+            <img 
+              src={video.channel.profile_image_url} 
+              alt={video.channel.name || 'Channel'}
+              className="w-full h-full rounded-full object-cover"
+            />
+          )}
+        </div>
+        <div>
+          <h3 className={`font-medium line-clamp-2 ${isDarkMode ? 'text-light-100' : 'text-dark-300'}`}>{video.title}</h3>
+          <p className={`text-sm mt-1 ${isDarkMode ? 'text-light-400' : 'text-dark-400'}`}>{video.channel?.name || 'Unknown Channel'}</p>
+          <div className={`flex items-center text-xs mt-1 ${isDarkMode ? 'text-light-400' : 'text-dark-400'}`}>
+            <span>{video.view_count} views</span>
+            <span className="mx-1">•</span>
+            <span>{formatTimeAgo(video.published_at)}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderHorizontalCard = () => (
+    <div 
+      className={`flex gap-4 cursor-pointer rounded-xl p-2 ${isDarkMode ? 'hover:bg-dark-100' : 'hover:bg-light-200'}`} 
+      onClick={handleClick}
+    >
+      <div className="relative shrink-0 w-40 md:w-64">
+        {isLoading && (
+          <div className={`absolute inset-0 ${isDarkMode ? 'bg-dark-100' : 'bg-light-200'} animate-pulse-slow rounded-xl`}></div>
+        )}
+        <img 
+          src={video.thumbnail_url} 
+          alt={video.title}
+          className="w-full rounded-xl aspect-video object-cover"
+          onLoad={handleImageLoad}
+        />
+      </div>
+      <div className="flex-1">
+        <h3 className={`font-medium line-clamp-2 ${isDarkMode ? 'text-light-100' : 'text-dark-300'}`}>{video.title}</h3>
+        <p className={`text-sm mt-1 ${isDarkMode ? 'text-light-400' : 'text-dark-400'}`}>{video.channel?.name || 'Unknown Channel'}</p>
+        <div className={`flex items-center text-xs mt-1 ${isDarkMode ? 'text-light-400' : 'text-dark-400'}`}>
+          <span>{video.view_count} views</span>
+          <span className="mx-1">•</span>
+          <span>{formatTimeAgo(video.published_at)}</span>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderSmallCard = () => (
+    <div 
+      className={`flex gap-2 cursor-pointer rounded-xl p-2 ${isDarkMode ? 'hover:bg-dark-100' : 'hover:bg-light-200'}`} 
+      onClick={handleClick}
+    >
+      <div className="relative shrink-0 w-32">
+        {isLoading && (
+          <div className={`absolute inset-0 ${isDarkMode ? 'bg-dark-100' : 'bg-light-200'} animate-pulse-slow rounded-xl`}></div>
+        )}
+        <img 
+          src={video.thumbnail_url} 
+          alt={video.title}
+          className="w-full rounded-xl aspect-video object-cover"
+          onLoad={handleImageLoad}
+        />
+      </div>
+      <div className="flex-1">
+        <h3 className={`font-medium text-sm line-clamp-2 ${isDarkMode ? 'text-light-100' : 'text-dark-300'}`}>{video.title}</h3>
+        <p className={`text-xs mt-1 ${isDarkMode ? 'text-light-400' : 'text-dark-400'}`}>{video.channel?.name || 'Unknown Channel'}</p>
+        <div className={`flex items-center text-xs mt-1 ${isDarkMode ? 'text-light-400' : 'text-dark-400'}`}>
+          <span>{video.view_count} views</span>
+        </div>
+      </div>
+    </div>
+  );
+
+  if (variant === 'horizontal') return renderHorizontalCard();
+  if (variant === 'small') return renderSmallCard();
+  return renderGridCard();
+};
+
+export default VideoCard;
+
+src/components/VideoGrid.tsx
+import type { VideoType } from '../types';
+import VideoCard from './VideoCard';
+
+interface VideoGridProps {
+  videos: VideoType[];
+  variant?: 'grid' | 'horizontal';
+  emptyMessage?: string;
+}
+
+const VideoGrid = ({ 
+  videos, 
+  variant = 'grid',
+  emptyMessage = 'No videos found' 
+}: VideoGridProps) => {
+  if (!videos || videos.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-10">
+        <p className="text-xl text-light-400">{emptyMessage}</p>
+      </div>
+    );
+  }
+
+  if (variant === 'horizontal') {
+    return (
+      <div className="space-y-4">
+        {videos.map((video) => (
+          <VideoCard key={video.id} video={video} variant="horizontal" />
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+      {videos.map((video) => (
+        <VideoCard key={video.id} video={video} />
+      ))}
+    </div>
+  );
+};
+
+export default VideoGrid;
+
+src/context/AuthContext.tsx
+import React, { createContext, useContext, type ReactNode, useState, useEffect } from 'react';
+
+interface AuthContextType {
+  token: string | null;
+  isAuthenticated: boolean;
+  login: () => void;
+  logout: () => void;
+}
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+interface AuthProviderProps {
+  children: ReactNode;
+}
+
+export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
+  // In a real app, we would store this securely and handle real login/logout
+  // For this example, we're just using the provided static token
+  const staticToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6InJhaHVsIiwicm9sZSI6IlBSSU1FX1VTRVIiLCJpYXQiOjE2MjMwNjU1MzJ9.D13s5wN3Oh59aa_qtXMo3Ec4wojOx0EZh8Xr5C5sRkU';
+  
+  const [token, setToken] = useState<string | null>(localStorage.getItem('auth_token') || staticToken);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(!!token);
+
+  // Effect to sync authentication state with localStorage
+  useEffect(() => {
+    if (token) {
+      localStorage.setItem('auth_token', token);
+      setIsAuthenticated(true);
+    } else {
+      localStorage.removeItem('auth_token');
+      setIsAuthenticated(false);
+    }
+  }, [token]);
+
+  const login = () => {
+    setToken(staticToken);
+  };
+
+  const logout = () => {
+    setToken(null);
+  };
+
+  const contextValue: AuthContextType = {
+    token,
+    isAuthenticated,
+    login,
+    logout,
+  };
+
+  return (
+    <AuthContext.Provider value={contextValue}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+export const useAuth = (): AuthContextType => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+};
+
+src/context/VideosContext.tsx
+// src/context/VideosContext.tsx
+import React, { createContext, useContext, type ReactNode, useState, useEffect } from 'react';
+import type { VideoType, UserInteraction } from '../types';
+
+interface VideosContextType {
+  savedVideos: VideoType[];
+  likedVideos: VideoType[];
+  addToSavedVideos: (video: VideoType) => void;
+  removeFromSavedVideos: (id: string) => void;
+  isVideoSaved: (id: string) => boolean;
+  toggleLikeVideo: (video: VideoType) => void;
+  isVideoLiked: (id: string) => boolean;
+  getLikedVideos: () => VideoType[];
+}
+
+const VideosContext = createContext<VideosContextType | undefined>(undefined);
+
+interface VideosProviderProps {
+  children: ReactNode;
+}
+
+export const VideosProvider: React.FC<VideosProviderProps> = ({ children }) => {
+  const [savedVideos, setSavedVideos] = useState<VideoType[]>(() => {
+    const saved = localStorage.getItem('saved_videos');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  const [userInteractions, setUserInteractions] = useState<UserInteraction>(() => {
+    const interactions = localStorage.getItem('user_interactions');
+    return interactions ? JSON.parse(interactions) : { likedVideos: [], dislikedVideos: [] };
+  });
+
+  // Effect to sync saved videos with localStorage
+  useEffect(() => {
+    localStorage.setItem('saved_videos', JSON.stringify(savedVideos));
+    localStorage.setItem('user_interactions', JSON.stringify(userInteractions));
+  }, [savedVideos, userInteractions]);
+
+  const addToSavedVideos = (video: VideoType) => {
+    setSavedVideos((prev) => {
+      if (prev.some((v) => v.id === video.id)) {
+        return prev;
+      }
+      return [...prev, video];
+    });
+  };
+
+  const removeFromSavedVideos = (id: string) => {
+    setSavedVideos((prev) => prev.filter((video) => video.id !== id));
+  };
+
+  const isVideoSaved = (id: string) => {
+    return savedVideos.some((video) => video.id === id);
+  };
+
+  const toggleLikeVideo = (video: VideoType) => {
+    setUserInteractions(prev => {
+      const isLiked = prev.likedVideos.includes(video.id);
+      const isDisliked = prev.dislikedVideos.includes(video.id);
+      
+      if (isLiked) {
+        return {
+          ...prev,
+          likedVideos: prev.likedVideos.filter(id => id !== video.id)
+        };
+      } else {
+        // Remove from disliked if it was disliked
+        const newDisliked = isDisliked 
+          ? prev.dislikedVideos.filter(id => id !== video.id)
+          : prev.dislikedVideos;
+          
+        return {
+          ...prev,
+          likedVideos: [...prev.likedVideos, video.id],
+          dislikedVideos: newDisliked
+        };
+      }
+    });
+  };
+
+  const isVideoLiked = (id: string) => {
+    return userInteractions.likedVideos.includes(id);
+  };
+
+  const getLikedVideos = () => {
+    return savedVideos.filter(video => userInteractions.likedVideos.includes(video.id));
+  };
+
+  const contextValue: VideosContextType = {
+    savedVideos,
+    likedVideos: getLikedVideos(),
+    addToSavedVideos,
+    removeFromSavedVideos,
+    isVideoSaved,
+    toggleLikeVideo,
+    isVideoLiked,
+    getLikedVideos
+  };
+
+  return (
+    <VideosContext.Provider value={contextValue}>
+      {children}
+    </VideosContext.Provider>
+  );
+};
+
+export const useVideos = (): VideosContextType => {
+  const context = useContext(VideosContext);
+  if (!context) {
+    throw new Error('useVideos must be used within a VideosProvider');
+  }
+  return context;
+};
+
+src/context/ThemeContext
+// src/context/ThemeContext.tsx
+import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+
+interface ThemeContextType {
+  isDarkMode: boolean;
+  toggleTheme: () => void;
+}
+
+const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
+
+interface ThemeProviderProps {
+  children: ReactNode;
+}
+
+export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    // Check localStorage for user preference or use system preference
+    const savedMode = localStorage.getItem('darkMode');
+    if (savedMode !== null) {
+      return savedMode === 'true';
+    }
+    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  });
+
+  useEffect(() => {
+    // Apply the theme class to the document
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+    // Save preference to localStorage
+    localStorage.setItem('darkMode', String(isDarkMode));
+  }, [isDarkMode]);
+
+  const toggleTheme = () => {
+    setIsDarkMode(prev => !prev);
+  };
+
+  return (
+    <ThemeContext.Provider value={{ isDarkMode, toggleTheme }}>
+      {children}
+    </ThemeContext.Provider>
+  );
+};
+
+export const useTheme = (): ThemeContextType => {
+  const context = useContext(ThemeContext);
+  if (!context) {
+    throw new Error('useTheme must be used within a ThemeProvider');
+  }
+  return context;
+};
+
+src/pages/Gaming.tsx
+import { useState, useEffect } from 'react';
+import type { VideoType } from '../types';
+import { getGamingVideos } from '../api/videoService';
+import { useAuth } from '../context/AuthContext';
+import VideoGrid from '../components/VideoGrid';
+import Loading from '../components/Loading';
+import { Gamepad2 } from 'lucide-react';
+
+const Gaming = () => {
+  const [videos, setVideos] = useState<VideoType[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const { token } = useAuth();
+
+  useEffect(() => {
+    const fetchVideos = async () => {
+      if (!token) return;
+      
+      try {
+        setLoading(true);
+        setError(null);
+        const videosData = await getGamingVideos(token);
+        setVideos(videosData);
+      } catch (err) {
+        console.error('Error fetching gaming videos:', err);
+        setError('Failed to load gaming videos. Please try again later.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchVideos();
+  }, [token]);
+
+  if (loading) {
+    return <Loading message="Fetching gaming videos..." />;
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center py-10">
+        <p className="text-xl text-red-500">{error}</p>
+        <button 
+          onClick={() => window.location.reload()}
+          className="btn btn-primary mt-4"
+        >
+          Try Again
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="flex items-center gap-3 mb-6">
+        <Gamepad2 className="text-primary-600" size={28} />
+        <h1 className="text-2xl font-bold">Gaming Videos</h1>
+      </div>
+
+      <VideoGrid 
+        videos={videos} 
+        emptyMessage="No gaming videos available" 
+      />
+    </div>
+  );
+};
+
+export default Gaming;
+
+
+src/pages/Home.tsx
+import { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
+import type { VideoType } from '../types';
+import { getVideos } from '../api/videoService';
+import { useAuth } from '../context/AuthContext';
+import VideoGrid from '../components/VideoGrid';
+import Loading from '../components/Loading';
+
+const Home = () => {
+  const [videos, setVideos] = useState<VideoType[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const location = useLocation();
+  const { token } = useAuth();
+  
+  // Extract search term from URL
+  const searchParams = new URLSearchParams(location.search);
+  const searchTerm = searchParams.get('search') || '';
+
+  useEffect(() => {
+    const fetchVideos = async () => {
+      if (!token) return;
+      
+      try {
+        setLoading(true);
+        setError(null);
+        const videosData = await getVideos(token, searchTerm);
+        setVideos(videosData);
+      } catch (err) {
+        console.error('Error fetching videos:', err);
+        setError('Failed to load videos. Please try again later.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchVideos();
+  }, [token, searchTerm]);
+
+  if (loading) {
+    return <Loading message="Fetching videos..." />;
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center py-10">
+        <p className="text-xl text-red-500">{error}</p>
+        <button 
+          onClick={() => window.location.reload()}
+          className="btn btn-primary mt-4"
+        >
+          Try Again
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">
+          {searchTerm ? `Search results for "${searchTerm}"` : 'Home'}
+        </h1>
+      </div>
+
+      <VideoGrid 
+        videos={videos} 
+        emptyMessage={searchTerm ? `No videos found for "${searchTerm}"` : 'No videos available'} 
+      />
+    </div>
+  );
+};
+
+export default Home;       
+
+src/pages/NotFound.tsx
+import { Link } from 'react-router-dom';
+import { Youtube } from 'lucide-react';
+
+const NotFound = () => {
+  return (
+    <div className="min-h-screen bg-dark-200 flex flex-col items-center justify-center p-4">
+      <Youtube className="text-primary-600" size={64} />
+      <h1 className="text-4xl font-bold mt-6">404</h1>
+      <p className="text-xl mt-2">Page Not Found</p>
+      <p className="text-light-400 mt-4 text-center max-w-md">
+        The page you're looking for doesn't exist or has been moved.
+      </p>
+      <Link 
+        to="/" 
+        className="btn btn-primary mt-8"
+      >
+        Back to Home
+      </Link>
+    </div>
+  );
+};
+
+export default NotFound;
+
+src/pages/SavedVideos.tsx
+import { Bookmark } from 'lucide-react';
+import { useVideos } from '../context/VideosContext';
+import VideoGrid from '../components/VideoGrid';
+
+const SavedVideos = () => {
+  const { savedVideos } = useVideos();
+
+  return (
+    <div>
+      <div className="flex items-center gap-3 mb-6">
+        <Bookmark className="text-primary-600" size={28} />
+        <h1 className="text-2xl font-bold">Saved Videos</h1>
+      </div>
+
+      <VideoGrid 
+        videos={savedVideos} 
+        variant="horizontal"
+        emptyMessage="No saved videos yet" 
+      />
+    </div>
+  );
+};
+
+export default SavedVideos;
+
+src/pages/Trending.tsx
+import { useState, useEffect } from 'react';
+import type { VideoType } from '../types';
+import { getTrendingVideos } from '../api/videoService';
+import { useAuth } from '../context/AuthContext';
+import VideoGrid from '../components/VideoGrid';
+import Loading from '../components/Loading';
+import { TrendingUp } from 'lucide-react';
+
+const Trending = () => {
+  const [videos, setVideos] = useState<VideoType[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const { token } = useAuth();
+
+  useEffect(() => {
+    const fetchVideos = async () => {
+      if (!token) return;
+      
+      try {
+        setLoading(true);
+        setError(null);
+        const videosData = await getTrendingVideos(token);
+        setVideos(videosData);
+      } catch (err) {
+        console.error('Error fetching trending videos:', err);
+        setError('Failed to load trending videos. Please try again later.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchVideos();
+  }, [token]);
+
+  if (loading) {
+    return <Loading message="Fetching trending videos..." />;
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center py-10">
+        <p className="text-xl text-red-500">{error}</p>
+        <button 
+          onClick={() => window.location.reload()}
+          className="btn btn-primary mt-4"
+        >
+          Try Again
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="flex items-center gap-3 mb-6">
+        <TrendingUp className="text-primary-600" size={28} />
+        <h1 className="text-2xl font-bold">Trending Videos</h1>
+      </div>
+
+      <VideoGrid 
+        videos={videos} 
+        variant="horizontal"
+        emptyMessage="No trending videos available" 
+      />
+    </div>
+  );
+};
+
+export default Trending;
+
+src/pages/VideoDetail.tsx
+
+// src/pages/VideoDetail.tsx
+import { useState, useEffect } from "react";
+import { useParams } from "react-router-dom";
+import ReactPlayer from "react-player";
+import { getVideoDetails, getVideos } from "../api/videoService";
+import type {
+  VideoDetailType,
+  VideoType,
+  CommentType,
+  LikeStatus,
+} from "../types";
+import { useAuth } from "../context/AuthContext";
+import { useVideos } from "../context/VideosContext";
+import VideoCard from "../components/VideoCard";
+import Loading from "../components/Loading";
+import {
+  Bookmark,
+  ThumbsUp,
+  ThumbsDown,
+  Share2,
+  MessageSquare,
+  Edit,
+  Trash2,
+  Reply,
+} from "lucide-react";
+import { formatTimeAgo, formatViewCount } from "../utils/formatters";
+import { useTheme } from "../context/ThemeContext";
+
+const VideoDetail = () => {
+  const { id } = useParams<{ id: string }>();
+  const [video, setVideo] = useState<VideoDetailType | null>(null);
+  const [relatedVideos, setRelatedVideos] = useState<VideoType[]>([]);
+  const [comments, setComments] = useState<CommentType[]>([]);
+  const [newComment, setNewComment] = useState("");
+  const [replyingTo, setReplyingTo] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState("");
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [editCommentText, setEditCommentText] = useState("");
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const { token } = useAuth();
+  const {
+    addToSavedVideos,
+    removeFromSavedVideos,
+    isVideoSaved,
+    toggleLikeVideo,
+    isVideoLiked,
+  } = useVideos();
+  const { isDarkMode } = useTheme();
+
+  const [likeStatus, setLikeStatus] = useState<LikeStatus>({
+    liked: isVideoLiked(id || ""),
+    disliked: false,
+  });
+
+  useEffect(() => {
+    const fetchVideoDetails = async () => {
+      if (!token || !id) return;
+
+      try {
+        setLoading(true);
+        setError(null);
+
+        // Fetch video details
+        const videoData = await getVideoDetails(token, id);
+        setVideo({
+          ...videoData,
+          likes: videoData.likes || 0, // Ensure likes has a default value
+          dislikes: videoData.dislikes || 0, // Ensure dislikes has a default value
+        });
+
+        // Fetch related videos
+        const allVideos = await getVideos(token);
+        const related = allVideos.filter((v) => v.id !== id).slice(0, 10);
+        setRelatedVideos(related);
+
+        // Mock comments
+        setComments([
+          {
+            id: "1",
+            author: "John Doe",
+            authorProfileImage: "https://randomuser.me/api/portraits/men/1.jpg",
+            text: "This video is amazing! Learned so much from it.",
+            likes: 42,
+            timestamp: "2023-05-15T10:30:00Z",
+            replies: [
+              {
+                id: "1-1",
+                author: "Jane Smith",
+                authorProfileImage:
+                  "https://randomuser.me/api/portraits/women/1.jpg",
+                text: "I agree! The explanations were very clear.",
+                likes: 5,
+                timestamp: "2023-05-15T11:15:00Z",
+              },
+            ],
+          },
+          {
+            id: "2",
+            author: "Alex Johnson",
+            authorProfileImage: "https://randomuser.me/api/portraits/men/2.jpg",
+            text: "Could you make a follow-up video on this topic?",
+            likes: 18,
+            timestamp: "2023-05-16T08:45:00Z",
+          },
+        ]);
+      } catch (err) {
+        console.error("Error fetching video details:", err);
+        setError("Failed to load video. Please try again later.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchVideoDetails();
+    window.scrollTo(0, 0);
+  }, [token, id]);
+
+  const handleSaveVideo = () => {
+    if (!video) return;
+
+    if (isVideoSaved(video.id)) {
+      removeFromSavedVideos(video.id);
+    } else {
+      addToSavedVideos(video);
+    }
+  };
+
+  const handleLike = () => {
+    if (!video) return;
+
+    const newLikeStatus = {
+      liked: !likeStatus.liked,
+      disliked: false,
+    };
+
+    setLikeStatus(newLikeStatus);
+    toggleLikeVideo(video);
+
+    // Update video likes count optimistically
+    setVideo((prev) => {
+      if (!prev) return null;
+      const likesChange = newLikeStatus.liked ? 1 : -1;
+      return {
+        ...prev,
+        likes: (prev.likes || 0) + likesChange,
+      };
+    });
+  };
+
+  const handleDislike = () => {
+    setLikeStatus((prev) => ({
+      liked: false,
+      disliked: !prev.disliked,
+    }));
+  };
+
+  const handleCommentSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newComment.trim()) return;
+
+    const newCommentObj: CommentType = {
+      id: Date.now().toString(),
+      author: "You",
+      authorProfileImage: "https://randomuser.me/api/portraits/men/3.jpg",
+      text: newComment,
+      likes: 0,
+      timestamp: new Date().toISOString(),
+      isEditable: true,
+    };
+
+    setComments((prev) => [newCommentObj, ...prev]);
+    setNewComment("");
+  };
+
+  const handleReplySubmit = (commentId: string) => {
+    if (!replyText.trim()) return;
+
+    const newReply: CommentType = {
+      id: `${commentId}-${Date.now()}`,
+      author: "You",
+      authorProfileImage: "https://randomuser.me/api/portraits/men/3.jpg",
+      text: replyText,
+      likes: 0,
+      timestamp: new Date().toISOString(),
+      isEditable: true,
+    };
+
+    setComments((prev) =>
+      prev.map((comment) => {
+        if (comment.id === commentId) {
+          return {
+            ...comment,
+            replies: [...(comment.replies || []), newReply],
+          };
+        }
+        return comment;
+      })
+    );
+
+    setReplyText("");
+    setReplyingTo(null);
+  };
+
+  const handleEditComment = (commentId: string) => {
+    const comment = findComment(comments, commentId);
+    if (comment) {
+      setEditingCommentId(commentId);
+      setEditCommentText(comment.text);
+    }
+  };
+
+  const handleUpdateComment = () => {
+    if (!editingCommentId || !editCommentText.trim()) return;
+
+    setComments((prev) =>
+      updateCommentText(prev, editingCommentId, editCommentText)
+    );
+    setEditingCommentId(null);
+    setEditCommentText("");
+  };
+
+  const handleDeleteComment = (commentId: string) => {
+    setComments((prev) => removeComment(prev, commentId));
+  };
+
+  const findComment = (
+    comments: CommentType[],
+    id: string
+  ): CommentType | null => {
+    for (const comment of comments) {
+      if (comment.id === id) return comment;
+      if (comment.replies) {
+        const found = findComment(comment.replies, id);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
+
+  const updateCommentText = (
+    comments: CommentType[],
+    id: string,
+    newText: string
+  ): CommentType[] => {
+    return comments.map((comment) => {
+      if (comment.id === id) {
+        return { ...comment, text: newText };
+      }
+      if (comment.replies) {
+        return {
+          ...comment,
+          replies: updateCommentText(comment.replies, id, newText),
+        };
+      }
+      return comment;
+    });
+  };
+
+  const removeComment = (
+    comments: CommentType[],
+    id: string
+  ): CommentType[] => {
+    return comments.reduce<CommentType[]>((acc, comment) => {
+      if (comment.id === id) return acc;
+
+      if (comment.replies) {
+        return [
+          ...acc,
+          {
+            ...comment,
+            replies: removeComment(comment.replies, id),
+          },
+        ];
+      }
+
+      return [...acc, comment];
+    }, []);
+  };
+
+  const handleCommentLike = (commentId: string) => {
+    setComments((prev) =>
+      prev.map((comment) => {
+        if (comment.id === commentId) {
+          return { ...comment, likes: comment.likes + 1 };
+        }
+        if (comment.replies) {
+          return {
+            ...comment,
+            replies: comment.replies.map((reply) => {
+              if (reply.id === commentId) {
+                return { ...reply, likes: reply.likes + 1 };
+              }
+              return reply;
+            }),
+          };
+        }
+        return comment;
+      })
+    );
+  };
+
+  if (loading) {
+    return <Loading message="Loading video..." />;
+  }
+
+  if (error || !video) {
+    return (
+      <div
+        className={`flex flex-col items-center justify-center py-10 ${
+          isDarkMode ? "bg-dark-200" : "bg-light-100"
+        }`}
+      >
+        <p className="text-xl text-red-500">{error || "Video not found"}</p>
+        <button
+          onClick={() => window.location.reload()}
+          className="btn btn-primary mt-4"
+        >
+          Try Again
+        </button>
+      </div>
+    );
+  }
+
+  const videoSaved = isVideoSaved(video.id);
+  const videoLiked = isVideoLiked(video.id);
+
+  return (
+    <div
+      className={`flex flex-col lg:flex-row gap-6 ${
+        isDarkMode ? "bg-dark-200" : "bg-light-100"
+      }`}
+    >
+      <div className="lg:w-2/3">
+        {/* Video Player */}
+        <div className="w-full aspect-video bg-black overflow-hidden rounded-xl">
+          <ReactPlayer
+            url={video.video_url}
+            width="100%"
+            height="100%"
+            controls
+            playing
+          />
+        </div>
+
+        {/* Video Info */}
+        <div className="mt-4">
+          <h1
+            className={`text-xl md:text-2xl font-bold ${
+              isDarkMode ? "text-light-100" : "text-dark-300"
+            }`}
+          >
+            {video.title}
+          </h1>
+
+          <div className="flex flex-wrap justify-between items-center mt-4">
+            <div
+              className={`flex items-center text-sm ${
+                isDarkMode ? "text-light-400" : "text-dark-400"
+              }`}
+            >
+              <span>{formatViewCount(video.view_count)}</span>
+              <span className="mx-2">•</span>
+              <span>
+                {formatViewCount((video.likes || 0).toString())} likes
+              </span>
+              <span className="mx-2">•</span>
+              <span>{formatTimeAgo(video.published_at)}</span>
+            </div>
+
+            <div className="flex items-center gap-4 mt-4 sm:mt-0">
+              <button
+                className={`flex items-center gap-2 ${
+                  videoLiked
+                    ? "text-primary-600"
+                    : isDarkMode
+                    ? "text-light-400 hover:text-light-100"
+                    : "text-dark-400 hover:text-dark-300"
+                }`}
+                onClick={handleLike}
+              >
+                <ThumbsUp size={20} />
+                <span>{videoLiked ? "Liked" : "Like"}</span>
+              </button>
+
+              <button
+                className={`flex items-center gap-2 ${
+                  likeStatus.disliked
+                    ? "text-primary-600"
+                    : isDarkMode
+                    ? "text-light-400 hover:text-light-100"
+                    : "text-dark-400 hover:text-dark-300"
+                }`}
+                onClick={handleDislike}
+              >
+                <ThumbsDown size={20} />
+                <span>Dislike</span>
+              </button>
+
+              <button
+                className={`flex items-center gap-2 ${
+                  videoSaved
+                    ? "text-primary-600"
+                    : isDarkMode
+                    ? "text-light-400 hover:text-light-100"
+                    : "text-dark-400 hover:text-dark-300"
+                }`}
+                onClick={handleSaveVideo}
+              >
+                <Bookmark size={20} />
+                <span>{videoSaved ? "Saved" : "Save"}</span>
+              </button>
+
+              <button
+                className={`flex items-center gap-2 ${
+                  isDarkMode
+                    ? "text-light-400 hover:text-light-100"
+                    : "text-dark-400 hover:text-dark-300"
+                }`}
+              >
+                <Share2 size={20} />
+                <span>Share</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Channel Info */}
+        <div
+          className={`mt-6 pt-6 ${
+            isDarkMode
+              ? "border-t border-dark-100"
+              : "border-t border-light-300"
+          }`}
+        >
+          <div className="flex items-start gap-4">
+            <img
+              src={video.channel.profile_image_url}
+              alt={video.channel.name}
+              className="w-12 h-12 rounded-full object-cover"
+            />
+            <div>
+              <h3
+                className={`font-medium ${
+                  isDarkMode ? "text-light-100" : "text-dark-300"
+                }`}
+              >
+                {video.channel.name}
+              </h3>
+              <p
+                className={`text-sm mt-1 ${
+                  isDarkMode ? "text-light-400" : "text-dark-400"
+                }`}
+              >
+                {video.channel.subscriber_count} subscribers
+              </p>
+            </div>
+          </div>
+
+          <p
+            className={`mt-4 whitespace-pre-line ${
+              isDarkMode ? "text-light-200" : "text-dark-300"
+            }`}
+          >
+            {video.description}
+          </p>
+        </div>
+
+        {/* Comments Section */}
+        <div
+          className={`mt-8 ${isDarkMode ? "text-light-100" : "text-dark-300"}`}
+        >
+          <div className="flex items-center gap-2 mb-6">
+            <MessageSquare size={20} />
+            <h3 className="text-xl font-medium">
+              Comments ({comments.length})
+            </h3>
+          </div>
+
+          {/* Comment Form */}
+          <form onSubmit={handleCommentSubmit} className="mb-8">
+            <div className="flex gap-3">
+              <img
+                src="https://randomuser.me/api/portraits/men/3.jpg"
+                alt="Your profile"
+                className="w-10 h-10 rounded-full object-cover"
+              />
+              <div className="flex-1">
+                <input
+                  type="text"
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                  placeholder="Add a comment..."
+                  className={`w-full px-4 py-2 rounded-full outline-none ${
+                    isDarkMode
+                      ? "bg-dark-100 text-light-100 placeholder-light-400"
+                      : "bg-light-200 text-dark-300 placeholder-dark-400"
+                  }`}
+                />
+              </div>
+            </div>
+            <div className="flex justify-end mt-2">
+              <button
+                type="submit"
+                className={`px-4 py-1 rounded-full ${
+                  isDarkMode
+                    ? "bg-primary-600 hover:bg-primary-700"
+                    : "bg-primary-500 hover:bg-primary-600"
+                } text-white`}
+                disabled={!newComment.trim()}
+              >
+                Comment
+              </button>
+            </div>
+          </form>
+
+          {/* Comments List */}
+          <div className="space-y-6">
+            {comments.map((comment) => (
+              <div key={comment.id} className="flex gap-3">
+                <img
+                  src={comment.authorProfileImage}
+                  alt={comment.author}
+                  className="w-10 h-10 rounded-full object-cover"
+                />
+                <div className="flex-1">
+                  <div
+                    className={`flex items-center gap-2 ${
+                      isDarkMode ? "text-light-100" : "text-dark-300"
+                    }`}
+                  >
+                    <span className="font-medium">{comment.author}</span>
+                    <span
+                      className={`text-xs ${
+                        isDarkMode ? "text-light-400" : "text-dark-400"
+                      }`}
+                    >
+                      {formatTimeAgo(comment.timestamp)}
+                    </span>
+                  </div>
+
+                  {editingCommentId === comment.id ? (
+                    <div className="mt-2">
+                      <input
+                        type="text"
+                        value={editCommentText}
+                        onChange={(e) => setEditCommentText(e.target.value)}
+                        className={`w-full px-3 py-2 rounded-md outline-none ${
+                          isDarkMode
+                            ? "bg-dark-100 text-light-100"
+                            : "bg-light-200 text-dark-300"
+                        }`}
+                        autoFocus
+                      />
+                      <div className="flex gap-2 mt-2">
+                        <button
+                          onClick={handleUpdateComment}
+                          className={`px-3 py-1 rounded-md ${
+                            isDarkMode
+                              ? "bg-primary-600 hover:bg-primary-700"
+                              : "bg-primary-500 hover:bg-primary-600"
+                          } text-white text-sm`}
+                        >
+                          Update
+                        </button>
+                        <button
+                          onClick={() => setEditingCommentId(null)}
+                          className={`px-3 py-1 rounded-md ${
+                            isDarkMode
+                              ? "bg-dark-100 hover:bg-dark-300"
+                              : "bg-light-200 hover:bg-light-300"
+                          } text-sm`}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p
+                      className={`mt-1 ${
+                        isDarkMode ? "text-light-200" : "text-dark-400"
+                      }`}
+                    >
+                      {comment.text}
+                    </p>
+                  )}
+
+                  <div className="flex items-center gap-4 mt-2">
+                    <button
+                      onClick={() => handleCommentLike(comment.id)}
+                      className={`flex items-center gap-1 ${
+                        isDarkMode
+                          ? "text-light-400 hover:text-light-100"
+                          : "text-dark-400 hover:text-dark-300"
+                      }`}
+                    >
+                      <ThumbsUp size={16} />
+                      <span className="text-sm">{comment.likes}</span>
+                    </button>
+
+                    <button
+                      onClick={() =>
+                        setReplyingTo(
+                          replyingTo === comment.id ? null : comment.id
+                        )
+                      }
+                      className={`flex items-center gap-1 text-sm ${
+                        isDarkMode
+                          ? "text-light-400 hover:text-light-100"
+                          : "text-dark-400 hover:text-dark-300"
+                      }`}
+                    >
+                      <Reply size={16} />
+                      <span>Reply</span>
+                    </button>
+
+                    {comment.isEditable && (
+                      <>
+                        <button
+                          onClick={() => handleEditComment(comment.id)}
+                          className={`flex items-center gap-1 text-sm ${
+                            isDarkMode
+                              ? "text-light-400 hover:text-light-100"
+                              : "text-dark-400 hover:text-dark-300"
+                          }`}
+                        >
+                          <Edit size={16} />
+                          <span>Edit</span>
+                        </button>
+                        <button
+                          onClick={() => handleDeleteComment(comment.id)}
+                          className={`flex items-center gap-1 text-sm ${
+                            isDarkMode
+                              ? "text-red-400 hover:text-red-300"
+                              : "text-red-500 hover:text-red-600"
+                          }`}
+                        >
+                          <Trash2 size={16} />
+                          <span>Delete</span>
+                        </button>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Reply Form */}
+                  {replyingTo === comment.id && (
+                    <div className="mt-4 pl-4 border-l-2 border-dark-100">
+                      <div className="flex gap-3 mt-2">
+                        <img
+                          src="https://randomuser.me/api/portraits/men/3.jpg"
+                          alt="Your profile"
+                          className="w-8 h-8 rounded-full object-cover"
+                        />
+                        <div className="flex-1">
+                          <input
+                            type="text"
+                            value={replyText}
+                            onChange={(e) => setReplyText(e.target.value)}
+                            placeholder="Write a reply..."
+                            className={`w-full px-3 py-1 rounded-md outline-none ${
+                              isDarkMode
+                                ? "bg-dark-100 text-light-100"
+                                : "bg-light-200 text-dark-300"
+                            }`}
+                            autoFocus
+                          />
+                          <div className="flex gap-2 mt-2">
+                            <button
+                              onClick={() => handleReplySubmit(comment.id)}
+                              className={`px-3 py-1 rounded-md ${
+                                isDarkMode
+                                  ? "bg-primary-600 hover:bg-primary-700"
+                                  : "bg-primary-500 hover:bg-primary-600"
+                              } text-white text-sm`}
+                              disabled={!replyText.trim()}
+                            >
+                              Reply
+                            </button>
+                            <button
+                              onClick={() => setReplyingTo(null)}
+                              className={`px-3 py-1 rounded-md ${
+                                isDarkMode
+                                  ? "bg-dark-100 hover:bg-dark-300"
+                                  : "bg-light-200 hover:bg-light-300"
+                              } text-sm`}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Replies */}
+                  {comment.replies && comment.replies.length > 0 && (
+                    <div className="mt-4 pl-4 border-l-2 border-dark-100 space-y-4">
+                      {comment.replies.map((reply) => (
+                        <div key={reply.id} className="flex gap-3">
+                          <img
+                            src={reply.authorProfileImage}
+                            alt={reply.author}
+                            className="w-8 h-8 rounded-full object-cover"
+                          />
+                          <div className="flex-1">
+                            <div
+                              className={`flex items-center gap-2 ${
+                                isDarkMode ? "text-light-100" : "text-dark-300"
+                              }`}
+                            >
+                              <span className="font-medium text-sm">
+                                {reply.author}
+                              </span>
+                              <span
+                                className={`text-xs ${
+                                  isDarkMode
+                                    ? "text-light-400"
+                                    : "text-dark-400"
+                                }`}
+                              >
+                                {formatTimeAgo(reply.timestamp)}
+                              </span>
+                            </div>
+
+                            {editingCommentId === reply.id ? (
+                              <div className="mt-2">
+                                <input
+                                  type="text"
+                                  value={editCommentText}
+                                  onChange={(e) =>
+                                    setEditCommentText(e.target.value)
+                                  }
+                                  className={`w-full px-3 py-1 rounded-md outline-none ${
+                                    isDarkMode
+                                      ? "bg-dark-100 text-light-100"
+                                      : "bg-light-200 text-dark-300"
+                                  }`}
+                                  autoFocus
+                                />
+                                <div className="flex gap-2 mt-2">
+                                  <button
+                                    onClick={handleUpdateComment}
+                                    className={`px-3 py-1 rounded-md ${
+                                      isDarkMode
+                                        ? "bg-primary-600 hover:bg-primary-700"
+                                        : "bg-primary-500 hover:bg-primary-600"
+                                    } text-white text-sm`}
+                                  >
+                                    Update
+                                  </button>
+                                  <button
+                                    onClick={() => setEditingCommentId(null)}
+                                    className={`px-3 py-1 rounded-md ${
+                                      isDarkMode
+                                        ? "bg-dark-100 hover:bg-dark-300"
+                                        : "bg-light-200 hover:bg-light-300"
+                                    } text-sm`}
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <p
+                                className={`mt-1 text-sm ${
+                                  isDarkMode
+                                    ? "text-light-200"
+                                    : "text-dark-400"
+                                }`}
+                              >
+                                {reply.text}
+                              </p>
+                            )}
+
+                            <div className="flex items-center gap-4 mt-2">
+                              <button
+                                onClick={() => handleCommentLike(reply.id)}
+                                className={`flex items-center gap-1 ${
+                                  isDarkMode
+                                    ? "text-light-400 hover:text-light-100"
+                                    : "text-dark-400 hover:text-dark-300"
+                                }`}
+                              >
+                                <ThumbsUp size={14} />
+                                <span className="text-xs">{reply.likes}</span>
+                              </button>
+
+                              {reply.isEditable && (
+                                <>
+                                  <button
+                                    onClick={() => handleEditComment(reply.id)}
+                                    className={`flex items-center gap-1 text-xs ${
+                                      isDarkMode
+                                        ? "text-light-400 hover:text-light-100"
+                                        : "text-dark-400 hover:text-dark-300"
+                                    }`}
+                                  >
+                                    <Edit size={14} />
+                                    <span>Edit</span>
+                                  </button>
+                                  <button
+                                    onClick={() =>
+                                      handleDeleteComment(reply.id)
+                                    }
+                                    className={`flex items-center gap-1 text-xs ${
+                                      isDarkMode
+                                        ? "text-red-400 hover:text-red-300"
+                                        : "text-red-500 hover:text-red-600"
+                                    }`}
+                                  >
+                                    <Trash2 size={14} />
+                                    <span>Delete</span>
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Related Videos */}
+      <div className="lg:w-1/3">
+        <h3
+          className={`text-lg font-medium mb-4 ${
+            isDarkMode ? "text-light-100" : "text-dark-300"
+          }`}
+        >
+          Related Videos
+        </h3>
+        <div className="space-y-4">
+          {relatedVideos.map((video) => (
+            <VideoCard key={video.id} video={video} variant="small" />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default VideoDetail;
+
+src/pages/Favorites.tsx
+// src/pages/Favorites.tsx
+import { Heart } from 'lucide-react';
+import { useVideos } from '../context/VideosContext';
+import VideoGrid from '../components/VideoGrid';
+
+const Favorites = () => {
+  const { likedVideos } = useVideos();
+
+  return (
+    <div>
+      <div className="flex items-center gap-3 mb-6">
+        <Heart className="text-primary-600" size={28} />
+        <h1 className="text-2xl font-bold">Favorite Videos</h1>
+      </div>
+
+      <VideoGrid 
+        videos={likedVideos} 
+        variant="horizontal"
+        emptyMessage="No favorite videos yet" 
+      />
+    </div>
+  );
+};
+
+export default Favorites;
+
+src/types/index.ts
+// src/types/index.ts
+export interface VideoType {
+  id: string;
+  title: string;
+  thumbnail_url: string;
+  channel: {
+    name: string;
+    profile_image_url: string;
+  };
+  view_count: string;
+  published_at: string;
+  video_url?: string;
+  description?: string;
+  likes?: number;
+  dislikes?: number;
+}
+
+export interface Channel {
+  name: string;
+  profile_image_url: string;
+  subscriber_count: string;
+}
+
+// src/types/index.ts
+export interface VideoDetailType extends VideoType {
+  video_url: string;
+  description: string;
+  channel: Channel;
+  likes?: number;  // Make likes optional
+  dislikes?: number;  // Make dislikes optional
+}
+
+export interface ApiResponse<T> {
+  total: number;
+  videos: T[];
+}
+
+export interface VideoDetailResponse {
+  video_details: VideoDetailType;
+}
+
+export interface CommentType {
+  id: string;
+  author: string;
+  authorProfileImage: string;
+  text: string;
+  likes: number;
+  timestamp: string;
+  isEditable?: boolean;
+  replies?: CommentType[];
+}
+
+export interface LikeStatus {
+  liked: boolean;
+  disliked: boolean;
+}
+
+export interface UserInteraction {
+  likedVideos: string[];
+  dislikedVideos: string[];
+}
+
+// src/types/index.ts
+export interface CommentType {
+  id: string;
+  author: string;
+  authorProfileImage: string;
+  text: string;
+  likes: number;
+  timestamp: string;
+  replies?: CommentType[];
+}
+
+export interface LikeStatus {
+  liked: boolean;
+  disliked: boolean;
+}
+
+src/utils/formatters.ts
+/**
+ * Formats a date string to a relative time ago format (e.g., "2 years ago")
+ */
+export const formatTimeAgo = (dateString: string): string => {
+  const date = new Date(dateString);
+  const now = new Date();
+  
+  const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+  
+  let interval = Math.floor(seconds / 31536000);
+  if (interval >= 1) {
+    return `${interval} ${interval === 1 ? 'year' : 'years'} ago`;
+  }
+  
+  interval = Math.floor(seconds / 2592000);
+  if (interval >= 1) {
+    return `${interval} ${interval === 1 ? 'month' : 'months'} ago`;
+  }
+  
+  interval = Math.floor(seconds / 86400);
+  if (interval >= 1) {
+    return `${interval} ${interval === 1 ? 'day' : 'days'} ago`;
+  }
+  
+  interval = Math.floor(seconds / 3600);
+  if (interval >= 1) {
+    return `${interval} ${interval === 1 ? 'hour' : 'hours'} ago`;
+  }
+  
+  interval = Math.floor(seconds / 60);
+  if (interval >= 1) {
+    return `${interval} ${interval === 1 ? 'minute' : 'minutes'} ago`;
+  }
+  
+  return 'Just now';
+};
+
+/**
+ * Format number of views to a more readable format (e.g., 1.2M, 450K)
+ */
+export const formatViewCount = (viewString: string): string => {
+  const count = parseInt(viewString, 10);
+  
+  if (isNaN(count)) {
+    return '0 views';
+  }
+  
+  if (count >= 1000000) {
+    return `${(count / 1000000).toFixed(1)}M views`;
+  }
+  
+  if (count >= 1000) {
+    return `${(count / 1000).toFixed(1)}K views`;
+  }
+  
+  return `${count} views`;
+};
+
+src/App.tsx
+// src/App.tsx
+import { Routes, Route } from 'react-router-dom';
+import Layout from './components/Layout';
+import Home from './pages/Home';
+import Trending from './pages/Trending';
+import Gaming from './pages/Gaming';
+import VideoDetail from './pages/VideoDetail';
+import SavedVideos from './pages/SavedVideos';
+import Favorites from './pages/Favorites';
+import NotFound from './pages/NotFound';
+import ProtectedRoute from './components/ProtectedRoute';
+
+function App() {
+  return (
+    <Routes>
+      <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+        <Route index element={<Home />} />
+        <Route path="trending" element={<Trending />} />
+        <Route path="gaming" element={<Gaming />} />
+        <Route path="video/:id" element={<VideoDetail />} />
+        <Route path="saved-videos" element={<SavedVideos />} />
+        <Route path="favorites" element={<Favorites />} />
+      </Route>
+      <Route path="*" element={<NotFound />} />
+    </Routes>
+  );
+}
+
+export default App;
+
+src/index.css
+/* src/index.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  @apply bg-light-100 text-dark-300 min-h-screen;
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.dark body {
+  @apply bg-dark-200 text-light-100;
+}
+
+/* Navbar styles */
+header {
+  @apply bg-light-100;
+}
+
+.dark header {
+  @apply bg-dark-300;
+}
+
+/* Sidebar styles */
+aside {
+  @apply bg-light-100;
+}
+
+.dark aside {
+  @apply bg-dark-300;
+}
+
+/* Scrollbar styles */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-light-300;
+}
+
+.dark ::-webkit-scrollbar-track {
+  @apply bg-dark-300;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-light-400 rounded-full;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  @apply bg-dark-100;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-gray-500;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  @apply bg-gray-600;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+@layer components {
+  /* Nav link styles */
+  .nav-link {
+    @apply flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-light-200 transition-colors text-dark-300;
+  }
+  
+  .dark .nav-link {
+    @apply text-light-100 hover:bg-dark-100;
+  }
+  
+  .nav-link.active {
+    @apply bg-light-200 font-medium text-dark-300;
+  }
+  
+  .dark .nav-link.active {
+    @apply bg-dark-100 font-medium text-light-100;
+  }
+  
+  /* Video card styles */
+  .video-card {
+    @apply rounded-xl overflow-hidden hover:scale-105 transition-all duration-300;
+  }
+  
+  .video-thumbnail {
+    @apply aspect-video object-cover w-full;
+  }
+  
+  /* Button styles */
+  .btn {
+    @apply px-4 py-2 rounded-lg font-medium transition-all duration-200;
+  }
+  
+  .btn-primary {
+    @apply bg-primary-600 hover:bg-primary-700 text-white;
+  }
+  
+  .btn-secondary {
+    @apply bg-light-200 hover:bg-light-300 text-dark-300;
+  }
+  
+  .dark .btn-secondary {
+    @apply bg-dark-100 hover:bg-dark-300 text-light-100;
+  }
+}
+
+src/main.tsx
+// src/main.tsx
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
+import { BrowserRouter } from 'react-router-dom';
+import App from './App';
+import './index.css';
+import { AuthProvider } from './context/AuthContext';
+import { VideosProvider } from './context/VideosContext';
+import { ThemeProvider } from './context/ThemeContext';
+
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <BrowserRouter>
+      <ThemeProvider>
+        <AuthProvider>
+          <VideosProvider>
+            <App />
+          </VideosProvider>
+        </AuthProvider>
+      </ThemeProvider>
+    </BrowserRouter>
+  </StrictMode>
+);
+
+tailwind.config.js
+/** @type {import('tailwindcss').Config} */
+export default {
+  content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
+  theme: {
+    extend: {
+      colors: {
+        primary: {
+          50: '#fef2f2',
+          100: '#fee2e2',
+          200: '#fecaca',
+          300: '#fca5a5',
+          400: '#f87171',
+          500: '#ef4444',
+          600: '#dc2626',
+          700: '#b91c1c',
+          800: '#991b1b',
+          900: '#7f1d1d',
+        },
+        dark: {
+          100: '#1f1f1f',
+          200: '#181818',
+          300: '#0f0f0f',
+          400: '#080808',
+        },
+        light: {
+          100: '#f9f9f9',
+          200: '#f1f1f1',
+          300: '#e5e5e5',
+          400: '#cccccc',
+        }
+      },
+      animation: {
+        'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+      }
+    },
+  },
+  plugins: [],
+};
+
