@@ -41,8 +41,6 @@ const VideoDetail = () => {
     toggleDislikeVideo,
     isVideoLiked,
     isVideoDisliked,
-    toggleLikeComment,
-    isCommentLiked,
   } = useVideos();
   const { isDarkMode } = useTheme();
 
@@ -300,31 +298,7 @@ const VideoDetail = () => {
     }, []);
   };
 
- const handleCommentLike = (commentId: string) => {
-    if (isCommentLiked(commentId)) return;
 
-    toggleLikeComment(commentId);
-    
-    setComments(prev =>
-      prev.map(comment => {
-        if (comment.id === commentId) {
-          return { ...comment, likes: comment.likes + 1 };
-        }
-        if (comment.replies) {
-          return {
-            ...comment,
-            replies: comment.replies.map(reply => {
-              if (reply.id === commentId) {
-                return { ...reply, likes: reply.likes + 1 };
-              }
-              return reply;
-            })
-          };
-        }
-        return comment;
-      })
-    );
-  };
 
   if (loading) {
     return <Loading message="Loading video..." />;
@@ -349,7 +323,6 @@ const VideoDetail = () => {
   }
 
   const videoSaved = isVideoSaved(video.id);
-  const videoLiked = isVideoLiked(video.id);
 
   return (
     <div

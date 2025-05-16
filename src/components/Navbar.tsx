@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Menu, Search, X, Youtube, Sun, Moon, Mic } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 
 interface NavbarProps {
@@ -14,7 +13,6 @@ const Navbar = ({ toggleSidebar }: NavbarProps) => {
   const [isListening, setIsListening] = useState(false);
   const recognitionRef = useRef<any>(null);
   const navigate = useNavigate();
-  const { logout } = useAuth();
   const { isDarkMode, toggleTheme } = useTheme();
   
 
@@ -173,8 +171,6 @@ const Navbar = ({ toggleSidebar }: NavbarProps) => {
               <Moon size={20} className="text-dark-300" />
             )}
           </button>
-
-          {/* Logout button */}
           
         </div>
       </div>
