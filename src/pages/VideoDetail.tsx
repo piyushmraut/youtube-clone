@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams } from "react-router-dom";
 import ReactPlayer from "react-player";
 import { getVideoDetails, getVideos } from "../api/videoService";
@@ -7,6 +7,7 @@ import { useAuth } from "../context/AuthContext";
 import { useVideos } from "../context/VideosContext";
 import VideoCard from "../components/VideoCard";
 import Loading from "../components/Loading";
+import { parseTimestamp } from '../utils/formatters';
 import {
   Bookmark,
   ThumbsUp,
@@ -43,6 +44,7 @@ const VideoDetail = () => {
     isVideoDisliked,
   } = useVideos();
   const { isDarkMode } = useTheme();
+  const playerRef = useRef<ReactPlayer>(null);
 
   useEffect(() => {
     const fetchVideoDetails = async () => {
@@ -103,6 +105,18 @@ const VideoDetail = () => {
     window.scrollTo(0, 0);
   }, [token, id]);
 
+  const handleTimestampClick = (text: string) => {
+  // Look for timestamp patterns like 0:25 or 1:30:45
+  const timestampRegex = /(\d+:)?\d+:\d+/g;
+  const matches = text.match(timestampRegex);
+  
+  if (matches && matches.length > 0 && playerRef.current) {
+    const seconds = parseTimestamp(matches[0]);
+    if (seconds !== null) {
+      playerRef.current.seekTo(seconds, 'seconds');
+    }
+  }
+};
   const handleSaveVideo = () => {
     if (!video) return;
 
@@ -192,6 +206,31 @@ const VideoDetail = () => {
     setComments((prev) => [newCommentObj, ...prev]);
     setNewComment("");
   };
+
+  const renderCommentText = (text: string) => {
+  const timestampRegex = /(\d+:)?\d+:\d+/g;
+  const parts = text.split(timestampRegex);
+  const matches = text.match(timestampRegex) || [];
+  
+  return parts.map((part, i) => {
+    if (i % 2 === 0) {
+      return <span key={i}>{part}</span>;
+    } else {
+      const timestamp = matches[(i - 1) / 2];
+      return (
+        <button
+          key={i}
+          onClick={() => handleTimestampClick(timestamp)}
+          className={`font-medium ${
+            isDarkMode ? 'text-primary-400 hover:text-primary-300' : 'text-primary-600 hover:text-primary-700'
+          }`}
+        >
+          {timestamp}
+        </button>
+      );
+    }
+  });
+};
 
   const handleReplySubmit = (commentId: string) => {
     if (!replyText.trim()) return;
@@ -334,12 +373,13 @@ const VideoDetail = () => {
         {/* Video Player */}
         <div className="w-full aspect-video bg-black overflow-hidden rounded-xl">
           <ReactPlayer
-            url={video.video_url}
-            width="100%"
-            height="100%"
-            controls
-            playing
-          />
+  ref={playerRef}
+  url={video.video_url}
+  width="100%"
+  height="100%"
+  controls
+  playing
+/>
         </div>
 
         {/* Video Info */}
@@ -580,7 +620,7 @@ const VideoDetail = () => {
                         isDarkMode ? "text-light-200" : "text-dark-400"
                       }`}
                     >
-                      {comment.text}
+                      {renderCommentText(comment.text)}
                     </p>
                   )}
 

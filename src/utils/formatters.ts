@@ -55,3 +55,24 @@ export const formatViewCount = (viewString: string): string => {
   
   return `${count} views`;
 };
+
+/**
+ * Parses a timestamp string (e.g., "1:23", "0:45") into seconds
+ */
+export const parseTimestamp = (timestamp: string): number | null => {
+  const parts = timestamp.split(':').reverse();
+  
+  // Validate format (should be either "ss" or "mm:ss")
+  if (parts.length > 2 || parts.some(part => !/^\d+$/.test(part))) {
+    return null;
+  }
+
+  try {
+    let seconds = 0;
+    if (parts.length >= 1) seconds += parseInt(parts[0], 10);
+    if (parts.length >= 2) seconds += parseInt(parts[1], 10) * 60;
+    return seconds;
+  } catch {
+    return null;
+  }
+};

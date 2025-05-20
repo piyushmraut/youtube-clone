@@ -1,4 +1,4 @@
-src/api/videoService.ts
+src/api/VideoService.ts
 import axios from 'axios';
 import type { ApiResponse, VideoType, VideoDetailResponse } from '../types';
 
@@ -92,6 +92,7 @@ const Layout = () => {
 
 export default Layout;
 
+
 src/components/Loading.tsx
 import { Youtube } from 'lucide-react';
 
@@ -111,10 +112,9 @@ const Loading = ({ message = 'Loading...' }: LoadingProps) => {
 export default Loading;
 
 src/components/Navbar.tsx
-// src/components/Navbar.tsx
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Menu, Search, X, Youtube, Sun, Moon } from 'lucide-react';
+import { Menu, Search, X, Youtube, Sun, Moon, Mic } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 
@@ -125,9 +125,41 @@ interface NavbarProps {
 const Navbar = ({ toggleSidebar }: NavbarProps) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef<any>(null);
   const navigate = useNavigate();
   const { logout } = useAuth();
   const { isDarkMode, toggleTheme } = useTheme();
+  
+
+  useEffect(() => {
+    if ('webkitSpeechRecognition' in window) {
+      const recognition = new (window as any).webkitSpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.lang = 'en-US';
+
+      recognition.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript;
+        setSearchTerm(transcript);
+        setIsListening(false);
+        navigate(`/?search=${transcript}`);
+      };
+
+      recognition.onerror = (event: any) => {
+        console.error('Speech recognition error', event.error);
+        setIsListening(false);
+      };
+
+      recognitionRef.current = recognition;
+    }
+
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+    };
+  }, [navigate]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -138,12 +170,38 @@ const Navbar = ({ toggleSidebar }: NavbarProps) => {
     setIsSearchOpen(!isSearchOpen);
   };
 
+  const toggleVoiceSearch = () => {
+    if (!recognitionRef.current) {
+      alert('Speech recognition is not supported in your browser');
+      return;
+    }
+
+    if (isListening) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+    } else {
+      recognitionRef.current.start();
+      setIsListening(true);
+    }
+  };
+
+  const clearSearch = () => {
+    setSearchTerm('');
+    navigate('/');
+  };
+
+  const handleToggleSidebar = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    console.log('Toggling sidebar'); // Debug log
+    toggleSidebar();
+  };
+
   return (
     <header className={`sticky top-0 z-10 shadow-md ${isDarkMode ? 'bg-dark-300' : 'bg-light-100'}`}>
       <div className="flex items-center justify-between h-16 px-4">
         <div className="flex items-center">
           <button 
-            onClick={toggleSidebar}
+            onClick={handleToggleSidebar}
             className={`p-2 rounded-full mr-2 md:mr-4 ${isDarkMode ? 'hover:bg-dark-100' : 'hover:bg-light-200'}`}
             aria-label="Toggle sidebar"
           >
@@ -174,12 +232,30 @@ const Navbar = ({ toggleSidebar }: NavbarProps) => {
               placeholder="Search videos..."
               className={`w-full px-4 py-2 border focus:border-primary-600 rounded-l-full outline-none ${isDarkMode ? 'bg-dark-100 border-dark-100 text-light-100 placeholder-light-400' : 'bg-light-200 border-light-300 text-dark-300 placeholder-dark-400'}`}
             />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={clearSearch}
+                className={`absolute right-3 top-1/2 transform -translate-y-1/2 p-1 rounded-full ${isDarkMode ? 'hover:bg-dark-300' : 'hover:bg-light-300'}`}
+                aria-label="Clear search"
+              >
+                <X size={18} className={isDarkMode ? 'text-light-100' : 'text-dark-300'} />
+              </button>
+            )}
           </div>
           <button
             type="submit"
             className={`px-6 py-2 rounded-r-full border ${isDarkMode ? 'bg-dark-100 border-dark-100 hover:bg-dark-300' : 'bg-light-200 border-light-300 hover:bg-light-300'}`}
           >
             <Search size={20} className={isDarkMode ? 'text-light-100' : 'text-dark-300'} />
+          </button>
+          <button
+            type="button"
+            onClick={toggleVoiceSearch}
+            className={`ml-2 p-2 rounded-full ${isListening ? 'bg-primary-600 text-white' : isDarkMode ? 'hover:bg-dark-100' : 'hover:bg-light-200'}`}
+            aria-label="Voice search"
+          >
+            <Mic size={20} className={isListening ? 'text-white' : isDarkMode ? 'text-light-100' : 'text-dark-300'} />
           </button>
         </form>
 
@@ -228,19 +304,39 @@ const Navbar = ({ toggleSidebar }: NavbarProps) => {
           onSubmit={handleSearch}
           className={`flex items-center p-2 md:hidden ${isDarkMode ? 'bg-dark-300' : 'bg-light-100'}`}
         >
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search videos..."
-            className={`flex-1 px-4 py-2 border focus:border-primary-600 rounded-l-md outline-none ${isDarkMode ? 'bg-dark-100 border-dark-100 text-light-100 placeholder-light-400' : 'bg-light-200 border-light-300 text-dark-300 placeholder-dark-400'}`}
-            autoFocus
-          />
+          <div className="relative flex-1">
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search videos..."
+              className={`w-full px-4 py-2 border focus:border-primary-600 rounded-l-md outline-none ${isDarkMode ? 'bg-dark-100 border-dark-100 text-light-100 placeholder-light-400' : 'bg-light-200 border-light-300 text-dark-300 placeholder-dark-400'}`}
+              autoFocus
+            />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={clearSearch}
+                className={`absolute right-3 top-1/2 transform -translate-y-1/2 p-1 rounded-full ${isDarkMode ? 'hover:bg-dark-300' : 'hover:bg-light-300'}`}
+                aria-label="Clear search"
+              >
+                <X size={18} className={isDarkMode ? 'text-light-100' : 'text-dark-300'} />
+              </button>
+            )}
+          </div>
           <button
             type="submit"
             className={`px-4 py-2 rounded-r-md border ${isDarkMode ? 'bg-dark-100 border-dark-100 hover:bg-dark-300' : 'bg-light-200 border-light-300 hover:bg-light-300'}`}
           >
             <Search size={20} className={isDarkMode ? 'text-light-100' : 'text-dark-300'} />
+          </button>
+          <button
+            type="button"
+            onClick={toggleVoiceSearch}
+            className={`ml-2 p-2 rounded-full ${isListening ? 'bg-primary-600 text-white' : isDarkMode ? 'hover:bg-dark-100' : 'hover:bg-light-200'}`}
+            aria-label="Voice search"
+          >
+            <Mic size={20} className={isListening ? 'text-white' : isDarkMode ? 'text-light-100' : 'text-dark-300'} />
           </button>
         </form>
       )}
@@ -274,7 +370,7 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
 export default ProtectedRoute;
 
 src/components/Sidebar.tsx
-
+// src/components/Sidebar.tsx
 import { Link, useLocation } from "react-router-dom";
 import { Home, TrendingUp, Gamepad2, Bookmark, Heart, X } from "lucide-react";
 import { useTheme } from "../context/ThemeContext";
@@ -365,7 +461,6 @@ const Sidebar = ({ isOpen, closeSidebar }: SidebarProps) => {
 export default Sidebar;
 
 src/components/VideoCard.tsx
-
 // src/components/VideoCard.tsx
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -600,122 +695,7 @@ export const useAuth = (): AuthContextType => {
   return context;
 };
 
-src/context/VideosContext.tsx
-// src/context/VideosContext.tsx
-import React, { createContext, useContext, type ReactNode, useState, useEffect } from 'react';
-import type { VideoType, UserInteraction } from '../types';
-
-interface VideosContextType {
-  savedVideos: VideoType[];
-  likedVideos: VideoType[];
-  addToSavedVideos: (video: VideoType) => void;
-  removeFromSavedVideos: (id: string) => void;
-  isVideoSaved: (id: string) => boolean;
-  toggleLikeVideo: (video: VideoType) => void;
-  isVideoLiked: (id: string) => boolean;
-  getLikedVideos: () => VideoType[];
-}
-
-const VideosContext = createContext<VideosContextType | undefined>(undefined);
-
-interface VideosProviderProps {
-  children: ReactNode;
-}
-
-export const VideosProvider: React.FC<VideosProviderProps> = ({ children }) => {
-  const [savedVideos, setSavedVideos] = useState<VideoType[]>(() => {
-    const saved = localStorage.getItem('saved_videos');
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  const [userInteractions, setUserInteractions] = useState<UserInteraction>(() => {
-    const interactions = localStorage.getItem('user_interactions');
-    return interactions ? JSON.parse(interactions) : { likedVideos: [], dislikedVideos: [] };
-  });
-
-  // Effect to sync saved videos with localStorage
-  useEffect(() => {
-    localStorage.setItem('saved_videos', JSON.stringify(savedVideos));
-    localStorage.setItem('user_interactions', JSON.stringify(userInteractions));
-  }, [savedVideos, userInteractions]);
-
-  const addToSavedVideos = (video: VideoType) => {
-    setSavedVideos((prev) => {
-      if (prev.some((v) => v.id === video.id)) {
-        return prev;
-      }
-      return [...prev, video];
-    });
-  };
-
-  const removeFromSavedVideos = (id: string) => {
-    setSavedVideos((prev) => prev.filter((video) => video.id !== id));
-  };
-
-  const isVideoSaved = (id: string) => {
-    return savedVideos.some((video) => video.id === id);
-  };
-
-  const toggleLikeVideo = (video: VideoType) => {
-    setUserInteractions(prev => {
-      const isLiked = prev.likedVideos.includes(video.id);
-      const isDisliked = prev.dislikedVideos.includes(video.id);
-      
-      if (isLiked) {
-        return {
-          ...prev,
-          likedVideos: prev.likedVideos.filter(id => id !== video.id)
-        };
-      } else {
-        // Remove from disliked if it was disliked
-        const newDisliked = isDisliked 
-          ? prev.dislikedVideos.filter(id => id !== video.id)
-          : prev.dislikedVideos;
-          
-        return {
-          ...prev,
-          likedVideos: [...prev.likedVideos, video.id],
-          dislikedVideos: newDisliked
-        };
-      }
-    });
-  };
-
-  const isVideoLiked = (id: string) => {
-    return userInteractions.likedVideos.includes(id);
-  };
-
-  const getLikedVideos = () => {
-    return savedVideos.filter(video => userInteractions.likedVideos.includes(video.id));
-  };
-
-  const contextValue: VideosContextType = {
-    savedVideos,
-    likedVideos: getLikedVideos(),
-    addToSavedVideos,
-    removeFromSavedVideos,
-    isVideoSaved,
-    toggleLikeVideo,
-    isVideoLiked,
-    getLikedVideos
-  };
-
-  return (
-    <VideosContext.Provider value={contextValue}>
-      {children}
-    </VideosContext.Provider>
-  );
-};
-
-export const useVideos = (): VideosContextType => {
-  const context = useContext(VideosContext);
-  if (!context) {
-    throw new Error('useVideos must be used within a VideosProvider');
-  }
-  return context;
-};
-
-src/context/ThemeContext
+src/context/ThemeContext.tsx
 // src/context/ThemeContext.tsx
 import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 
@@ -769,6 +749,208 @@ export const useTheme = (): ThemeContextType => {
   }
   return context;
 };
+
+src/context/VideosContext.tsx
+// src/context/VideosContext.tsx
+import React, { createContext, useContext, type ReactNode, useState, useEffect } from 'react';
+import type { VideoType, UserInteraction } from '../types';
+
+interface VideosContextType {
+  savedVideos: VideoType[];
+  likedVideos: VideoType[];
+  addToSavedVideos: (video: VideoType) => void;
+  removeFromSavedVideos: (id: string) => void;
+  isVideoSaved: (id: string) => boolean;
+  toggleLikeVideo: (video: VideoType) => void;
+  toggleDislikeVideo: (video: VideoType) => void;
+  isVideoLiked: (id: string) => boolean;
+  isVideoDisliked: (id: string) => boolean;
+  getLikedVideos: () => VideoType[];
+  toggleLikeComment: (commentId: string) => void;
+  isCommentLiked: (commentId: string) => boolean;
+}
+
+const VideosContext = createContext<VideosContextType | undefined>(undefined);
+
+interface VideosProviderProps {
+  children: ReactNode;
+}
+
+export const VideosProvider: React.FC<VideosProviderProps> = ({ children }) => {
+  const [savedVideos, setSavedVideos] = useState<VideoType[]>(() => {
+    const saved = localStorage.getItem('saved_videos');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  const [userInteractions, setUserInteractions] = useState<UserInteraction>(() => {
+  const interactions = localStorage.getItem('user_interactions');
+  return interactions ? JSON.parse(interactions) : { 
+    likedVideos: [], 
+    dislikedVideos: [],
+    likedComments: [] 
+  };
+});
+
+  useEffect(() => {
+    localStorage.setItem('saved_videos', JSON.stringify(savedVideos));
+    localStorage.setItem('user_interactions', JSON.stringify(userInteractions));
+  }, [savedVideos, userInteractions]);
+
+  const addToSavedVideos = (video: VideoType) => {
+    setSavedVideos((prev) => {
+      if (prev.some((v) => v.id === video.id)) {
+        return prev;
+      }
+      return [...prev, video];
+    });
+  };
+
+  const toggleLikeComment = (commentId: string) => {
+  setUserInteractions(prev => {
+    if (prev.likedComments.includes(commentId)) {
+      return {
+        ...prev,
+        likedComments: prev.likedComments.filter(id => id !== commentId)
+      };
+    } else {
+      return {
+        ...prev,
+        likedComments: [...prev.likedComments, commentId]
+      };
+    }
+  });
+};
+
+const isCommentLiked = (commentId: string) => {
+  return userInteractions.likedComments.includes(commentId);
+};
+
+  const removeFromSavedVideos = (id: string) => {
+    setSavedVideos((prev) => prev.filter((video) => video.id !== id));
+  };
+
+  const isVideoSaved = (id: string) => {
+    return savedVideos.some((video) => video.id === id);
+  };
+
+  const toggleLikeVideo = (video: VideoType) => {
+    setUserInteractions(prev => {
+      const isLiked = prev.likedVideos.includes(video.id);
+      const isDisliked = prev.dislikedVideos.includes(video.id);
+      
+      if (isLiked) {
+        return {
+          ...prev,
+          likedVideos: prev.likedVideos.filter(id => id !== video.id)
+        };
+      } else {
+        // Remove from disliked if it was disliked
+        const newDisliked = isDisliked 
+          ? prev.dislikedVideos.filter(id => id !== video.id)
+          : prev.dislikedVideos;
+          
+        return {
+          ...prev,
+          likedVideos: [...prev.likedVideos, video.id],
+          dislikedVideos: newDisliked
+        };
+      }
+    });
+  };
+
+  const toggleDislikeVideo = (video: VideoType) => {
+    setUserInteractions(prev => {
+      const isDisliked = prev.dislikedVideos.includes(video.id);
+      const isLiked = prev.likedVideos.includes(video.id);
+      
+      if (isDisliked) {
+        return {
+          ...prev,
+          dislikedVideos: prev.dislikedVideos.filter(id => id !== video.id)
+        };
+      } else {
+        // Remove from liked if it was liked
+        const newLiked = isLiked 
+          ? prev.likedVideos.filter(id => id !== video.id)
+          : prev.likedVideos;
+          
+        return {
+          ...prev,
+          dislikedVideos: [...prev.dislikedVideos, video.id],
+          likedVideos: newLiked
+        };
+      }
+    });
+  };
+
+  const isVideoLiked = (id: string) => {
+    return userInteractions.likedVideos.includes(id);
+  };
+
+  const isVideoDisliked = (id: string) => {
+    return userInteractions.dislikedVideos.includes(id);
+  };
+
+  const getLikedVideos = () => {
+    return savedVideos.filter(video => userInteractions.likedVideos.includes(video.id));
+  };
+
+  const contextValue: VideosContextType = {
+    savedVideos,
+    likedVideos: getLikedVideos(),
+    addToSavedVideos,
+    removeFromSavedVideos,
+    isVideoSaved,
+    toggleLikeVideo,
+    toggleDislikeVideo,
+    isVideoLiked,
+    isVideoDisliked,
+    getLikedVideos,
+    toggleLikeComment,
+    isCommentLiked
+  };
+
+  return (
+    <VideosContext.Provider value={contextValue}>
+      {children}
+    </VideosContext.Provider>
+  );
+};
+
+export const useVideos = (): VideosContextType => {
+  const context = useContext(VideosContext);
+  if (!context) {
+    throw new Error('useVideos must be used within a VideosProvider');
+  }
+  return context;
+};
+
+src/pages/Favorites.tsx
+// src/pages/Favorites.tsx
+import { Heart } from 'lucide-react';
+import { useVideos } from '../context/VideosContext';
+import VideoGrid from '../components/VideoGrid';
+
+const Favorites = () => {
+  const { likedVideos } = useVideos();
+
+  return (
+    <div>
+      <div className="flex items-center gap-3 mb-6">
+        <Heart className="text-primary-600" size={28} />
+        <h1 className="text-2xl font-bold">Favorite Videos</h1>
+      </div>
+
+      <VideoGrid 
+        videos={likedVideos} 
+        variant="horizontal"
+        emptyMessage="No favorite videos yet" 
+      />
+    </div>
+  );
+};
+
+export default Favorites;
 
 src/pages/Gaming.tsx
 import { useState, useEffect } from 'react';
@@ -915,7 +1097,7 @@ const Home = () => {
   );
 };
 
-export default Home;       
+export default Home;    
 
 src/pages/NotFound.tsx
 import { Link } from 'react-router-dom';
@@ -1039,19 +1221,14 @@ const Trending = () => {
 
 export default Trending;
 
-src/pages/VideoDetail.tsx
 
-// src/pages/VideoDetail.tsx
+
+src/pages/VideoDetail.tsx
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import ReactPlayer from "react-player";
 import { getVideoDetails, getVideos } from "../api/videoService";
-import type {
-  VideoDetailType,
-  VideoType,
-  CommentType,
-  LikeStatus,
-} from "../types";
+import type { VideoDetailType, VideoType, CommentType } from "../types";
 import { useAuth } from "../context/AuthContext";
 import { useVideos } from "../context/VideosContext";
 import VideoCard from "../components/VideoCard";
@@ -1087,14 +1264,13 @@ const VideoDetail = () => {
     removeFromSavedVideos,
     isVideoSaved,
     toggleLikeVideo,
+    toggleDislikeVideo,
     isVideoLiked,
+    isVideoDisliked,
+    toggleLikeComment,
+    isCommentLiked,
   } = useVideos();
   const { isDarkMode } = useTheme();
-
-  const [likeStatus, setLikeStatus] = useState<LikeStatus>({
-    liked: isVideoLiked(id || ""),
-    disliked: false,
-  });
 
   useEffect(() => {
     const fetchVideoDetails = async () => {
@@ -1104,20 +1280,17 @@ const VideoDetail = () => {
         setLoading(true);
         setError(null);
 
-        // Fetch video details
         const videoData = await getVideoDetails(token, id);
         setVideo({
           ...videoData,
-          likes: videoData.likes || 0, // Ensure likes has a default value
-          dislikes: videoData.dislikes || 0, // Ensure dislikes has a default value
+          likes: videoData.likes || 0,
+          dislikes: videoData.dislikes || 0,
         });
 
-        // Fetch related videos
         const allVideos = await getVideos(token);
         const related = allVideos.filter((v) => v.id !== id).slice(0, 10);
         setRelatedVideos(related);
 
-        // Mock comments
         setComments([
           {
             id: "1",
@@ -1130,8 +1303,7 @@ const VideoDetail = () => {
               {
                 id: "1-1",
                 author: "Jane Smith",
-                authorProfileImage:
-                  "https://randomuser.me/api/portraits/women/1.jpg",
+                authorProfileImage: "https://randomuser.me/api/portraits/women/1.jpg",
                 text: "I agree! The explanations were very clear.",
                 likes: 5,
                 timestamp: "2023-05-15T11:15:00Z",
@@ -1171,31 +1343,64 @@ const VideoDetail = () => {
 
   const handleLike = () => {
     if (!video) return;
-
-    const newLikeStatus = {
-      liked: !likeStatus.liked,
-      disliked: false,
-    };
-
-    setLikeStatus(newLikeStatus);
     toggleLikeVideo(video);
 
     // Update video likes count optimistically
     setVideo((prev) => {
       if (!prev) return null;
-      const likesChange = newLikeStatus.liked ? 1 : -1;
+
+      const wasLiked = isVideoLiked(video.id);
+      const wasDisliked = isVideoDisliked(video.id);
+
+      let likesChange = 0;
+      let dislikesChange = 0;
+
+      if (wasLiked) {
+        likesChange = -1;
+      } else {
+        likesChange = 1;
+        if (wasDisliked) {
+          dislikesChange = -1;
+        }
+      }
+
       return {
         ...prev,
         likes: (prev.likes || 0) + likesChange,
+        dislikes: (prev.dislikes || 0) + dislikesChange,
       };
     });
   };
 
   const handleDislike = () => {
-    setLikeStatus((prev) => ({
-      liked: false,
-      disliked: !prev.disliked,
-    }));
+    if (!video) return;
+    toggleDislikeVideo(video);
+
+    // Update video dislikes count optimistically
+    setVideo((prev) => {
+      if (!prev) return null;
+
+      const wasDisliked = isVideoDisliked(video.id);
+      const wasLiked = isVideoLiked(video.id);
+
+      let dislikesChange = 0;
+      let likesChange = 0;
+
+      if (wasDisliked) {
+        dislikesChange = -1;
+      } else {
+        dislikesChange = 1;
+        if (wasLiked) {
+          likesChange = -1;
+        }
+      }
+
+      return {
+        ...prev,
+        dislikes: (prev.dislikes || 0) + dislikesChange,
+        likes: (prev.likes || 0) + likesChange,
+      };
+    });
   };
 
   const handleCommentSubmit = (e: React.FormEvent) => {
@@ -1321,21 +1526,25 @@ const VideoDetail = () => {
     }, []);
   };
 
-  const handleCommentLike = (commentId: string) => {
-    setComments((prev) =>
-      prev.map((comment) => {
+ const handleCommentLike = (commentId: string) => {
+    if (isCommentLiked(commentId)) return;
+
+    toggleLikeComment(commentId);
+    
+    setComments(prev =>
+      prev.map(comment => {
         if (comment.id === commentId) {
           return { ...comment, likes: comment.likes + 1 };
         }
         if (comment.replies) {
           return {
             ...comment,
-            replies: comment.replies.map((reply) => {
+            replies: comment.replies.map(reply => {
               if (reply.id === commentId) {
                 return { ...reply, likes: reply.likes + 1 };
               }
               return reply;
-            }),
+            })
           };
         }
         return comment;
@@ -1414,7 +1623,7 @@ const VideoDetail = () => {
             <div className="flex items-center gap-4 mt-4 sm:mt-0">
               <button
                 className={`flex items-center gap-2 ${
-                  videoLiked
+                  isVideoLiked(video.id)
                     ? "text-primary-600"
                     : isDarkMode
                     ? "text-light-400 hover:text-light-100"
@@ -1423,12 +1632,12 @@ const VideoDetail = () => {
                 onClick={handleLike}
               >
                 <ThumbsUp size={20} />
-                <span>{videoLiked ? "Liked" : "Like"}</span>
+                <span>{isVideoLiked(video.id) ? "Liked" : "Like"}</span>
               </button>
 
               <button
                 className={`flex items-center gap-2 ${
-                  likeStatus.disliked
+                  isVideoDisliked(video.id)
                     ? "text-primary-600"
                     : isDarkMode
                     ? "text-light-400 hover:text-light-100"
@@ -1890,32 +2099,12 @@ const VideoDetail = () => {
 
 export default VideoDetail;
 
-src/pages/Favorites.tsx
-// src/pages/Favorites.tsx
-import { Heart } from 'lucide-react';
-import { useVideos } from '../context/VideosContext';
-import VideoGrid from '../components/VideoGrid';
-
-const Favorites = () => {
-  const { likedVideos } = useVideos();
-
-  return (
-    <div>
-      <div className="flex items-center gap-3 mb-6">
-        <Heart className="text-primary-600" size={28} />
-        <h1 className="text-2xl font-bold">Favorite Videos</h1>
-      </div>
-
-      <VideoGrid 
-        videos={likedVideos} 
-        variant="horizontal"
-        emptyMessage="No favorite videos yet" 
-      />
-    </div>
-  );
-};
-
-export default Favorites;
+src/types/global.d.ts
+// src/types/global.d.ts
+interface Window {
+  webkitSpeechRecognition: any;
+  SpeechRecognition: any;
+}
 
 src/types/index.ts
 // src/types/index.ts
@@ -1941,13 +2130,12 @@ export interface Channel {
   subscriber_count: string;
 }
 
-// src/types/index.ts
 export interface VideoDetailType extends VideoType {
   video_url: string;
   description: string;
   channel: Channel;
-  likes?: number;  // Make likes optional
-  dislikes?: number;  // Make dislikes optional
+  likes?: number;
+  dislikes?: number;
 }
 
 export interface ApiResponse<T> {
@@ -1978,22 +2166,7 @@ export interface LikeStatus {
 export interface UserInteraction {
   likedVideos: string[];
   dislikedVideos: string[];
-}
-
-// src/types/index.ts
-export interface CommentType {
-  id: string;
-  author: string;
-  authorProfileImage: string;
-  text: string;
-  likes: number;
-  timestamp: string;
-  replies?: CommentType[];
-}
-
-export interface LikeStatus {
-  liked: boolean;
-  disliked: boolean;
+  likedComments: string[]; // Add this line
 }
 
 src/utils/formatters.ts
@@ -2227,44 +2400,3 @@ createRoot(document.getElementById('root')!).render(
     </BrowserRouter>
   </StrictMode>
 );
-
-tailwind.config.js
-/** @type {import('tailwindcss').Config} */
-export default {
-  content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
-  theme: {
-    extend: {
-      colors: {
-        primary: {
-          50: '#fef2f2',
-          100: '#fee2e2',
-          200: '#fecaca',
-          300: '#fca5a5',
-          400: '#f87171',
-          500: '#ef4444',
-          600: '#dc2626',
-          700: '#b91c1c',
-          800: '#991b1b',
-          900: '#7f1d1d',
-        },
-        dark: {
-          100: '#1f1f1f',
-          200: '#181818',
-          300: '#0f0f0f',
-          400: '#080808',
-        },
-        light: {
-          100: '#f9f9f9',
-          200: '#f1f1f1',
-          300: '#e5e5e5',
-          400: '#cccccc',
-        }
-      },
-      animation: {
-        'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-      }
-    },
-  },
-  plugins: [],
-};
-

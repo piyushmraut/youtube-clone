@@ -59,3 +59,4 @@ export interface UserInteraction {
   dislikedVideos: string[];
   likedComments: string[];
 }
+
